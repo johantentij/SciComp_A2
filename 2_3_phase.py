@@ -6,19 +6,28 @@ import scipy.sparse as sp
 
 plt.rcParams.update({
     "font.size": 14,
-    "axes.titlesize": 16,
-    "axes.labelsize": 14,
-    "xtick.labelsize": 12,
-    "ytick.labelsize": 12,
+    "axes.titlesize": 25,
+    "axes.labelsize": 25,
+    "xtick.labelsize": 25,
+    "ytick.labelsize": 25,
     "legend.fontsize": 12,
 })
 
-N = 200
+N = 2000
 
 D_u = .16
 D_v = .08
-f = .035
-k = .06
+# f = .035
+# k = .06
+
+f = np.linspace(0, .07, N)
+k = np.linspace(0, .07, N)
+
+F = np.outer(f, np.ones(N))
+F = F.flatten(order='F')
+
+K = np.outer(np.ones(N), k)
+K = K.flatten(order='F')
 
 dx = 1
 dt = 1
@@ -40,8 +49,8 @@ D2_2 = sp.kron(I, D2) + sp.kron(D2, I)
 def dState_dt(state):
     U, V = state
 
-    dU_dt = D_u * D2_2.dot(U) - U * V * V + f * (1 - U)
-    dV_dt = D_v * D2_2.dot(V) + U * V * V - (f + k) * V
+    dU_dt = D_u * D2_2.dot(U) - U * V * V + F * (1 - U)
+    dV_dt = D_v * D2_2.dot(V) + U * V * V - (F + K) * V
 
     return np.array([dU_dt, dV_dt])
 
@@ -64,8 +73,16 @@ U_init = .5 * np.ones((N, N))
 V_init = np.zeros((N, N))
 squareRadius = 4
 
-xc = N // 2
-V_init[xc - squareRadius : xc + squareRadius, xc - squareRadius : xc + squareRadius] = .25
+initDivs = 150
+noiseAmplitude = 5
+for i in range(initDivs):
+    xc = i * N // initDivs     
+    for j in range(initDivs):
+        yc = j * N // initDivs
+
+        xo = int((2 * np.random.random() - 1) * noiseAmplitude)
+        yo = int((2 * np.random.random() -1 ) * noiseAmplitude)
+        V_init[xc + xo - squareRadius : xc + xo + squareRadius, yc + yo - squareRadius : yc + yo + squareRadius] = .25
 
 
 U_init = U_init.flatten(order='F') + epsilon * np.random.random(N ** 2)
@@ -81,38 +98,25 @@ V = np.reshape(V, (N, N), order='F')
 
 
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+fig, ax = plt.subplots(1, figsize=(12, 12))
 
-im1 = ax1.imshow(
+im = ax.imshow(
     U,
     origin='lower',
-    extent=[0, np.max(x), 0, np.max(x)],
+    extent=[np.min(f), np.max(f), np.min(k), np.max(k)],
     cmap='viridis',
     animated=True,
     vmin=0,
     vmax=1
 )
-ax1.set_title("$U(x, y)$")
-ax1.set_xlabel("$x$")
-ax1.set_ylabel("$y$")
+ax.set_title("$U(x, y)$")
+ax.set_xlabel("$k$")
+ax.set_ylabel("$f$")
 
-im2 = ax2.imshow(
-    V,
-    origin='lower',
-    extent=[0, np.max(x), 0, np.max(x)],
-    cmap='viridis',
-    animated=True,
-    vmin=0,
-    vmax=1
-)
-ax2.set_title("$V(x, y)$")
-ax2.set_xlabel("$x$")
-ax2.set_ylabel("$y$")
-
-cbar = fig.colorbar(im1, ax=[ax1, ax2])
+cbar = fig.colorbar(im, ax=ax)
 cbar.set_label("Concentration")
 
-frame_step = 50
+frame_step = 1
 
 def update(frame):
     global state
@@ -125,12 +129,11 @@ def update(frame):
     U = np.reshape(U, (N, N), order='F')
     V = np.reshape(V, (N, N), order='F')
 
-    im1.set_data(U)
-    im2.set_data(V)
+    im.set_data(U)
 
     fig.suptitle(f"t = {frame * frame_step * dt:.2f}")
     
-    return [im1, im2]
+    return [im]
     
 ani = animation.FuncAnimation(
     fig, update, interval=10, cache_frame_data=False
