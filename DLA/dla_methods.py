@@ -197,7 +197,10 @@ def get_candidates_and_choose(is_candidate, c, eta):
     weights = np.empty(len(idx_i), dtype=np.float64)
     total_w = 0.0
     for k in range(len(idx_i)):
-        w = c[idx_i[k], idx_j[k]] ** eta
+        # ensure non-negative concentrations
+        val = max(0, c[idx_i[k], idx_j[k]])
+
+        w = val ** eta
         weights[k] = w
         total_w += w
 
@@ -244,7 +247,8 @@ def update_candidate_mask(i_new, j_new, cluster, is_candidate, N, c):
 
 def dla_simulation(N=100, seed_i=None, seed_j=1, omega=1.94,
                    max_sor_iter=5000, tolerance=1e-5, growth_steps=800,
-                   eta=1.0, frame_interval=10, parallel=False, prng_seed=None):
+                   eta=1.0, frame_interval=10, parallel=False, prng_seed=None, 
+                   outputSORiters=False, logging=True):
     """
         Simulates fractal growth using the Dielectric Breakdown Model (DBM) /
         Diffusion Limited Aggregation (DLA) framework via iterative Laplace solving.
@@ -279,6 +283,10 @@ def dla_simulation(N=100, seed_i=None, seed_j=1, omega=1.94,
             If False, uses the standard serial SOR solver with a warm start.
         prng_seed : int, optional
             Seed for the Numba-compatible random number generator.
+        outputSORiters : bool, optional
+            Enables return of the amount of SOR iterations used 
+        logging : bool, optional
+            Sets whether to log the progress
 
         Returns:
         --------
@@ -311,7 +319,7 @@ def dla_simulation(N=100, seed_i=None, seed_j=1, omega=1.94,
     system_init()
 
     # Initial solve
-    c, _ = solve_laplace_sor(c, cluster, omega, max_sor_iter, tolerance, N)
+    c, iters = solve_laplace_sor(c, cluster, omega, max_sor_iter, tolerance, N)
 
     # ============================================================
     # DLA LOOP
@@ -319,11 +327,14 @@ def dla_simulation(N=100, seed_i=None, seed_j=1, omega=1.94,
     frames_field = []
     frames_cluster = []
     frames_field.append(c.copy())
-    frames_cluster.append(cluster.copy().astype(np.float32))
+    frames_cluster.append(cluster.copy())
+
+    SOR_iters = [iters]
 
     start = time.perf_counter()
 
-    print("Simulating growth...")
+    if logging:
+        print("Simulating growth...")
     for step in range(1, growth_steps + 1):
         # Choose new site from the boundary only
         i_new, j_new = get_candidates_and_choose(is_candidate, c, eta)
@@ -336,25 +347,40 @@ def dla_simulation(N=100, seed_i=None, seed_j=1, omega=1.94,
         # Add to cluster and update boundary mask
         cluster[i_new, j_new] = True
         c[i_new, j_new] = 0.0
+
+        if (j_new == N - 2):
+            frames_field.append(c.copy())
+            frames_cluster.append(cluster.copy())
+            SOR_iters.append(iters)
+            if logging:
+                print(f"Top has been reached at step {step}")
+
+            break
+
         update_candidate_mask(i_new, j_new, cluster, is_candidate, N, c)
 
         if parallel:
             # Parallel SOR solve
             c, iters = solve_laplace_red_black(c, cluster, omega, max_sor_iter, tolerance, N)
+
         else:
             # Solve starting from previous field (Warm Start)
             c, iters = solve_laplace_sor(c, cluster, omega, max_sor_iter, tolerance, N)
 
-
         if step % frame_interval == 0:
             frames_field.append(c.copy())
-            frames_cluster.append(cluster.copy().astype(np.float32))
-            if step % 200 == 0:
+            frames_cluster.append(cluster.copy())
+            SOR_iters.append(iters)
+            if step % 200 == 0 and logging:
                 print(f"Step {step} | SOR Iters: {iters}")
 
     t_python = time.perf_counter() - start
-    print(f"Python time: {t_python:.6f} seconds")
+    if logging:
+        print(f"Python time: {t_python:.6f} seconds")
 
-    return frames_field, frames_cluster
+    if outputSORiters:
+        return frames_field, frames_cluster, SOR_iters
+    else:
+        return frames_field, frames_cluster
 
 # dla_simulation(eta=1,prng_seed=42)
