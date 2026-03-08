@@ -17,15 +17,21 @@ N = 200
 
 D_u = .16
 D_v = .08
-f = .035
-k = .06
+
+A = [.04, .01]
+B = [.062, .03]
+C = [.06, .045]
+# f = .035
+# k = .06
+
+k, f = C
 
 dx = 1
 dt = 1
 
 x = np.arange(N) * dx
 
-epsilon = .01
+epsilon = 0
 
 # D2 = -2 * np.identity(N)
 # D2 += np.roll(np.identity(N), 1, axis=0)
@@ -67,6 +73,8 @@ squareRadius = 4
 xc = N // 2
 V_init[xc - squareRadius : xc + squareRadius, xc - squareRadius : xc + squareRadius] = .25
 
+xc = N // 2 - 50
+V_init[xc - squareRadius : xc + squareRadius, xc - squareRadius : xc + squareRadius] = .25
 
 U_init = U_init.flatten(order='F') + epsilon * np.random.random(N ** 2)
 V_init = V_init.flatten(order='F') + epsilon * np.random.random(N ** 2)

@@ -46,7 +46,7 @@ def radius_of_gyration(cluster):
     if len(points) < 2:
         return 0.0
     center_of_mass = np.mean(points, axis=0)
-    squared_distances = np.sum((points - center_of_mass)**2, axis=1)
+    squared_distances = (points - center_of_mass)**2
     return np.sqrt(np.mean(squared_distances))
 
 def box_counting_dimension(cluster):
