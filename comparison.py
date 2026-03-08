@@ -7,29 +7,21 @@ from DLA.dla_methods import dla_simulation
 from dla_mc import monte_carlo_dla
 from cluster_metrics import calculate_metrics
 
-def plot_clusters(ax, N=100, num_particles=800):
-    mc_cluster = monte_carlo_dla(N=N, num_particles=num_particles, p_s=1)
-    _, pde_frames = dla_simulation(N=N, growth_steps=num_particles, eta=1, parallel=True, logging=False)
-    pde_cluster = pde_frames[-1]
+plt.rcParams.update({
+    "font.size": 14,
+    "axes.titlesize": 16,
+    "axes.labelsize": 14,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+})
+
+def plot_clusters(ax, N=100, num_particles=800, p_s=1):
+    cluster = monte_carlo_dla(N=N, num_particles=num_particles, p_s=p_s)
     
-    display_img = np.ones((N, N, 3))
-    
-    mc_t, pde_t = mc_cluster.T, pde_cluster.T
-    
-    # colors
-    display_img[mc_t & ~pde_t] = [0.1, 0.7, 0.8]
-    display_img[pde_t & ~mc_t] = [0.9, 0.3, 0.3]
-    display_img[mc_t & pde_t]  = [0.2, 0.2, 0.2]
-    display_img[1, N//2]       = [0.0, 0.0, 0.0]
-    
-    ax.imshow(display_img, origin='lower')
-    legend_elements = [
-        Patch(facecolor=[0.1, 0.7, 0.8], label='Monte Carlo ($p_s=1.0$)'),
-        Patch(facecolor=[0.9, 0.3, 0.3], label='PDE/SOR ($\eta=1.0$)'),
-        Patch(facecolor=[0.2, 0.2, 0.2], label='Overlap')
-    ]
-    ax.legend(handles=legend_elements, loc='upper left')
-    ax.set_title(f"$N_{{particles}}={num_particles}$")
+    x = np.arange(N)
+    ax.pcolor(x, x, cluster.T)
+    ax.set_title(f"$p_s={p_s}$")
 
 def compare_metrics(N=80, particle_list=[200, 400, 600], trials=10):
     metrics_keys = ["Max Height", "Horizontal Spread", "Radius of Gyration", "Correlation Dimension", "Box-Counting Dimension"]
@@ -119,15 +111,22 @@ def plot_metrics(particle_list, results):
 if __name__ == "__main__":
     # coral overlapping plot
     N_grid = 100
-    particle_counts = [200, 400, 600, 800]
+    # particle_counts = [200, 400, 600, 800]
+    p_s_values = [.25, .5, .75, 1]
     
-    fig, axes = plt.subplots(1, 4, figsize=(18, 6), dpi=120)
-    fig.suptitle("Visual Comparison of DLA Models at Different Growth Stages", fontsize=16)
+    fig, axes = plt.subplots(2, 2, figsize=(18, 6), dpi=120)
     
-    for i, p_num in enumerate(particle_counts):
-        plot_clusters(axes[i], N=N_grid, num_particles=p_num)
+    axesFlat = axes.flatten()
+    for i, p_s in enumerate(p_s_values):
+        plot_clusters(axesFlat[i], N=N_grid, num_particles=800, p_s=p_s)
     
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    axes[0, 0].set_ylabel("$y$")
+    axes[1, 0].set_xlabel("$x$")
+    axes[1, 0].set_ylabel("$y$")
+    axes[1, 1].set_xlabel("$x$")
+
+    # plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
     
     # stats comparison plot
