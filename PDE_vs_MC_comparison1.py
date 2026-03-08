@@ -4,7 +4,7 @@ from matplotlib.patches import Patch
 import time
 
 from DLA.dla_methods import dla_simulation
-from dla_mc import monte_carlo_dla
+from DLA_MC_statistics import monte_carlo_dla
 from cluster_metrics import calculate_metrics
 
 plt.rcParams.update({

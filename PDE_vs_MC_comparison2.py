@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 
 from DLA.dla_methods import dla_simulation
-from dla_mc import monte_carlo_dla
+from DLA_MC_statistics import monte_carlo_dla
 from cluster_metrics import radius_of_gyration, box_counting_dimension, correlation_dimension
 
 plt.rcParams.update({
